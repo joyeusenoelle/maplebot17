@@ -1,5 +1,6 @@
 import random
-from ananas import PineappleBot, hourly, reply, html_strip_tags, daily
+import datetime
+from ananas import PineappleBot, hourly, reply, html_strip_tags, daily, interval
 
 class MapleBot(PineappleBot):
 
@@ -9,18 +10,32 @@ class MapleBot(PineappleBot):
 		with open('maple_responses','r') as responses:
 			self.responses = responses.read().split("\n")
 		print("Hello!")
+		self.recents = []
 
 	@hourly(minute=12)
-	@hourly(minute=47)
 	def post_behavior(self):
 		behavior = random.choice(self.behaviors)
 		print("Scheduled behavior: {}".format(behavior))
 		self.mastodon.status_post("*{}*".format(behavior))
+		self.clear_recents()
 
-	@daily(hour=15, minute=12)
+	@daily(hour=13, minute=16)
 	def post_maple(self):
 		print("Good morning Maple")
-		self.mastodon.status_post("@squirrel@computerfairi.es *kisses Maple-mom good morning")
+		self.mastodon.status_post("@squirrel@computerfairi.es *kisses Maple-mom good morning*")
+		self.clear_recents()
+
+	@daily(hour=17, minute=21)
+	def post_birb(self):
+		print("Good morning Laser")
+		self.mastodon.status_post("@laserscheme@computerfairi.es *kisses Bird-mom good morning*")
+		self.clear_recents()
+
+	@daily(hour=7, minute=8)
+	def post_snek(self):
+		print("Good morning Ellie")
+		self.mastodon.status_post("@noelle@elekk.xyz *kisses Snake-mom good morning*")
+		self.clear_recents()
 
 	@reply
 	def post_response(self, mention, user):
@@ -30,7 +45,29 @@ class MapleBot(PineappleBot):
 		irt = mention["id"]
 		vis = mention["visibility"]
 		print("Received toot from {}: {}".format(tgt, msg))
-		print("Responding with {} visibility: {}".format(vis, rsp))
-		self.mastodon.status_post("@{} *{}*".format(tgt, rsp),
+		if tgt not in self.recents or vis == 'direct':
+			print("Responding with {} visibility: {}".format(vis, rsp))
+			self.mastodon.status_post("@{} *{}*".format(tgt, rsp),
 								  in_reply_to_id = irt,
 								  visibility = vis)
+			if vis != 'direct':
+				self.recents.append(tgt)
+				print("self.recents updated. Now [{}].".format(", ".join(self.recents)))
+		else:
+			print("...but I've responded to {} too recently.".format(tgt))
+
+	@interval(180)
+	def clear_recents(self):
+		try:
+			old_recents = []
+			for item in self.recents:
+				old_recents.append(item)
+			self.recents = []
+			if self.recents != old_recents:
+				print("self.recents cleared. Now [{}].".format(", ".join(self.recents)))
+			else:
+				#print("self.recents was empty, so I don't have to clear it.")
+				pass
+		except:
+			print("I ran into an error trying to clear self.recents.")
+
